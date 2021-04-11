@@ -83,4 +83,12 @@ With discrete state or action spaces, you can easily represent the mapping funct
 
 Also, think about the estimation and update portions of both model based and model free methods. they each loop over the states or actions within a state so that can't be done with infinite numbers of states or actions. 
 
-now you don't have individual states or actions, if you were to plot your state value function, it'd no longer be able to be plotted as a histogram of discrete values become a density function under some continuous plot of a state function 
+now you don't have individual states or actions, if you were to plot your state value function, it'd no longer be able to be plotted as a histogram of discrete values become a density function under some continuous plot of a state function
+
+### Why do we need to have continuous MDPs? 
+
+for MDP of simpler reinforcement learning or simple environments that are more like the playspace of a game like chess or checkers, you can have discrete spaces to model out the environment. If all you care about can be represented in a discrete way, then this should be all you use it will save you complexity. 
+
+However, in the real world most things are continuous, think about a vacuum cleaner robot navigating a floor. This is more of a continuous plane than a grid, you can't get away with representing it as a grid. 
+
+
