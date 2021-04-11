@@ -14,3 +14,11 @@ r(s, a) as separate quantities. combining these into one probability statemetn i
 and the reward for transitioning to that state are jointly determined by the action taken. there is a Martin Minsky paper to read about this that he wrote in 1967 I should add some
 notes from there. 
 
+## Anatomy of an MDP
+
+states s, actions a, probabilities a, rewards r, discount factor gamma
+
+you can visualize MDPs as a Finite State Machine, where the states are the states of the mdp, the transitions are the actions you take from one state to get to another. Because Markov Decision Processes can represent problems where the results of an action may be uncertain, and that is why there are probabilities. the probability is modeled as the 
+likelihood of getting a state and reward in the next time step given the agent was in a given state and took a given action.
+
+The markov property is a name given to a property of a stochastic process (process that has randomness) if the conditional probability distribution of future states of the process only depends on the present state and not the states that came before it. So in the example of Markov Decision Processes, the probability of the future reward and state only depends on the current state and action, not the series of states and actions leading up to the current state and action.  
