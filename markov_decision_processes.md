@@ -49,3 +49,38 @@ Well, suppose there are real environments you are trying to model where the grap
 ## State Value and Action Value Functions
 
 Markov Decision Processes goal is to find two mappings, functions. V(S) the value of every state, and Q(S, A) the value of an action in a given state. we are trying to estimate or predict the V(S), and Q(S, A) is giving us the action to take. Together they help us arrive at the optimal policy Pi star, which will maximize our total _expected_ reward. it is expected instead of actual because MDPs have uncertainty built into them about what amount of reward we could get for a given state action pairing and also how often we can get it. Because of the uncertainty we create a discount term gamma so that the values we add to the Q function emphasize the rewards we are given now over the rewards we expect to get in the future. In simple problems where we know all of the transitions are deterministic, we wouldn't have to treat the reward as expected and we wouldn't need a discount factor because older information about rewards is just as good as current information about rewards.   
+
+
+## RL Algorithms based on MDP
+
+### Model Based Apporaches
+
+* policy based iteration
+* value iteration
+
+you have to have a transition and reward model. Dynamic Programming approaches are then used to figuer out the idea state value and action value functions based on the model they already have. 
+
+### Model-Free Learning
+
+* Monte Carlo Methods
+* Temporal Difference Learning
+
+These don't have a model up front of the transitions or rewards. They don't know how likely a reward is based on a given action from a given state (that is what I'll call the dynamics, I hope I'm using that term correctly). Their method to find the optimal policy, state value and action value function is to 'sample' the environment. A sample here is taking exploratory actions over some limited number of time steps. They then use the experience they get from taking these actions to estimate the proper value functions. 
+
+## How Deep Reinforcement Learning Differs from Traditional Reinforcement Learning in the Context of MDP
+
+In traditional reinforcement learning algorithms, there is the implicit assumption that the parameter space of the Markov Decision Process is finite and/or discrete. 
+
+Dynamic programming requires full knowledge of the transitions and rewards, so it needs a model based on a finite number of states or actions. Additionally, model free learning techniques use finite data structures to keep track of their experience, which means to this point they need a place in that structure to hold every state and action combination. If there are infinite or continuous states or actions, these methods break down, there just isn't an easy way to store the representations of these MDPs. 
+
+Also, with infinite or continuous state and action spaces, you will probably be seeing more methods involving integration or derivation to be able to determine values as the slices of discrete chunks approach a continuous space, again where you don't get values until you approximate their limit. 
+
+## Continuous MDP
+
+### Why more complex? 
+
+With discrete state or action spaces, you can easily represent the mapping functions for state value or action value as a dictionary or as a matrix in the case of Q tables. You can do this because your index in these cases is either your states or actions or both and so you can represent them in the dictionary or matrix with the sequence of integers. 
+
+Also, think about the estimation and update portions of both model based and model free methods. they each loop over the states or actions within a state so that can't be done with infinite numbers of states or actions. 
+
+now you don't have individual states or actions, if you were to plot your state value function, it'd no longer be able to be plotted as a histogram of discrete values become a density function under some continuous plot of a state function 
