@@ -91,4 +91,37 @@ for MDP of simpler reinforcement learning or simple environments that are more l
 
 However, in the real world most things are continuous, think about a vacuum cleaner robot navigating a floor. This is more of a continuous plane than a grid, you can't get away with representing it as a grid. 
 
+generally speaking, if your agent is going to interact in the physical world or a world that is based on the actual physical world, then it will need a continuous action space and probably a continuous state space as well. 
+
+### Discretization
+
+This is a technique for converting a continuous space into a discrete space. 
+
+for example, vacuum cleaner bot could be represented as a continuous state space. to discretize this, you can overlay a grid on it just like the one you would have in the gridworld example that has centers for each of its grid squares, and as long as the robot's center is within the boundaries of a grid square, you round the location of the robot to that square's center. This will have approximation probelems, but depending on the problem you are trying to solve this kind of approximation can have little or no impact on your ability to learn a good policy. You could then apply existing algorithms and have them still work in this space. 
+
+You can do the same type of things for actions. you can round angles for example to the nearest 45 or 90 degrees. 
+
+also, say then you have obstacles in the environemnt that are real world obstacles. Then you may need to do something like binary space partitioning or quad trees, i.e. you create an  occupancy grid to tell you what grid squares the obstacles are occupying, and then depending on how precise you want to be you can also subdivide the grid but just for those overall grid squares to get a more precise picture of where the objects are for your navigation task without wasting computation on the squares that it doesn't matter for. 
+
+in non grid like state spaces you can also subdivide the different parts of a continuous state space. The example given was the state space for what the optimal gear in terms of fuel efficiency was for a car depending on how fast it was traveling. 
+
+#### Tile Coding
+
+the methods for discretization covered so far, in the lab where you just break up the space into bins or in the example where you have a known relationship between fuel consumption and speed to help guide where states should be broken up according to gear. however, if you don't know about the environment in advance enough to know what shoudl be used for the way space is broken up and if that space is more irregular, then you need a more general method. One of these is Tile Coding. 
+
+For tile coding, you start with a 2d state space which is continuous, so think of on axis for state feature 1 and one for state feature 2 and they make a continuous plane. Then, you overlay or superimpose on top of this state space some tile spaces that are discrete, and those tile spaces are at offsets from each other. So then if you want to know the position of a point on the continuous state space, you can look at what tiles are activated on the respective tile space overlays. 
+
+you can assign a bit to each of the tiles in all of the tile spaces and then you can represent the discretized location as a bit vector where you have ones for the activated and 0s for all other tiles. 
+
+then, instead of the value function having a separate value for every state V(s) in the state space in terms of the bit vector, it instead uses a combination of the bit vector and a weight that every tile in the vector gets. the weights of each tile are then updated iteratively. that way, nearby states that share tiles share a component of the learned value function, so it smooths the boundaries betweeen states in the learned value function. 
+
+there are drawbacks, you have to manually set up the tile grids and sizes ahead of time. Adaptive tile coding starts with a fixed size tile grid and then splits the tiles after learning slows down. adaptive tile coding doesn't 
+rely on a human to specify the tile grid ahead of time and instead gets as complex as neede to learn what it needs to learn.
+
+
+
+
+
+
+### Function Approximation
 
