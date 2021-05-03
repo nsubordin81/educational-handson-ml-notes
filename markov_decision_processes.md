@@ -167,4 +167,25 @@ Ok, last one. So before we were only computing the action value function approxi
 
 The problem is that you are limited to linear represenations of the relationship between inputs and outputs. It becomes time to look at nonlinear functions. 
 
+### Kernel Functions
+
+This will let you capture non linear relationships with linear functions. Something that takes a state or state action pair and produces a feature vector from that. each state action pair could use a function to transform itself into the feature that is in the feature vector. if you had a state that was just a single number, you could define x1(s) = s, x2(s) = s^2, etc. so there is a transformation of the input state into a different space. They could aslo be called basis functions. but since the value function is still defined as a linear combination across these features you can still use linear approximation. 
+
+Radial basis functions are a commonly used kernel function for reinforcement learning and for kernel functions in general. They allwo you to define a series of blobs over your continuous state space, and then they represent the response of each blob as a basis function that overlays the blob with a gaussian curve. The peak of the gaussian curve is at the center and then the response falls off as you move to the edge. The standard deviation controls how fast the response falls off as you move away from the center of the blob. Then the location of the point in te continuous space can be approximated by a vector of radial basis response values. 
+
+once you have the radial basis function responses, you can use that vector for approximation in the same way you discretized the state space to end up with finite values that you can measure your agent against. So it reduces the space down from a very large discrete space of approximations to an alternative which is a smaller set of responses from the kernel functions. 
+
+### Non Linear Function Approximation
+
+Kernel functions are still forcing the output into a linear combination of the feature values. The function might be a truly nonlinear function on the feature values even if the input features themselves have been transformed to represent nonlinear values in higher dimensional space. 
+
+What you need to do for non-linear functions is surround the dot product operation you are taking of the state vector and the parameter vector with what is called an 'activation' function. Now you are talking about the foundational formula for neural nets. you can then do numerical optimization on this function in the same way you would do for a neural network. You have the learning rate alpha, times the difference in the vectors, times the derivative of the function with respect to the weights. 
+
+
+traditional RL techniques use a finite markov decision process to model an environment which limits you to discrete state and action spaces. So when you ahve continuous state spaces, you only have 2 options: 
+- discretize the state space with one of several methods like tiling offsets with grids or coarse tiling. 
+- directly try to approximate the value function, either with kernel functions as the feaure transformation, which still are representing the dot product of your vectors as a linear combination in terms of the features and the parameters, or with neural networks which are capable of wrapping that linear combination in an activation function which may be nonlinear and greatly increases the representation space of your action value function. 
+
+
+
 
