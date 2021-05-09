@@ -133,7 +133,82 @@ The other modivication is the separate netowork used to generate the targets, th
 
 last thing they clipped the error term from the the update function to be between -1 and 1. this is because the loss function's derivative for x is -1 for all values that are negative of x and 1 for all positive values. so if the squared errror living between those value means that you are essentially using absolute value loss function which makes the model more stable. I am not as sure how. I guess when you clip extreme errors then the gradients don't move the weights around too much so they have an easier time converging. 
 
+#### Analysis of the workspace code: 
 
+So there is an Agent class in dqn_agent.py and the model.py code. I will look at those in a minute, but first the cell that is actually running the trained agent. 
+
+##### The Code that Runs the Agent:
+
+the code in the notebook that runs that trained agent initializes a new agent to the right n umber of states and actions for the lunar lander environment, 8 states and 4 actions, there is a seed parameter but we aren't setting one. 
+
+Then, we reset the lunar lander environment - this resets the environment and returns an initial observation. This is used either when calling fo rthe first time or after the episode of that environment's task returns 'done'. typical patterns looks like we reset the environment in some outer loop and then loop through the steps in that environment until the environment step returns 'done'
+
+we set img to the return value of `plt.imshow(env.render(mode='rgb_array'))` which is an AxesImage object. This will allow us to update, display and rescale the image that we are displaying the game state on. imshow just says to take the data you pass it and display it on a 2d raster surface. the open ai gym environment has an rgb_array mode for its display, which uses the gym.envs.classic_control.rendering.Viewer object. the viewer accepts width and height on initialization and it allso accepts bounds that are a scaled quantity with respect to the width and height to give the actual size of the screen in pixels. The viewer looks to be something of a canvas object, and when it is passed the rgb_mode flag, then it will use pyglet.image.get_bugffer_manager().get_color_buffer() and it will get the immage data from the buffer and use numpy's frombuffer command to transform that data into an array of integers and then it reshapes the array to an array with buffer.height x buffer.width x 4. Not sure if the 4 is r,g,b,a or why it is 4 of them. So I guess this is just an array that the imshow will know how to draw to the screen based on their contracts with each other. 
+
+then we iterate through an array from 0 to 199, where we: 
+have the agent act adn record the action into 'action'
+we update the data in our image object with the current value of env.render, assuming it has changed because our agent has acted. 
+we turn off the plot axis because we are displaying a raster image of game state not an actual plot of anything
+we then display the data we have written to the image by passing plt.gcf (get current figure) to the display object that we created during imports. this is coming from pyvirtualdisplay we imported Display and then set it and started it at the top of the notebook, but also looks like since we are in an ipython notebook we might have just completely overriden that by just importing display directly from IPython afterward, that is a little confusing to me. 
+
+in any case we then call clear_output on the display, but with a flag of `wait=True` which will not actually clear the output until you have new output avaialble. This is very much the typical pattern for display buffers, draw to the new one while leaving the old one displayed and then swap them. 
+
+The final step in the running code is to actually take the step in the environment with the action that you got from the agent.act policy function and get the reward and state from that. I guess you ignore the reward here because you've already trained the agent? it does not continue updating its policy so the reward isn't very useful anymore. Seems like you could let it continue learning if it was your goal but I guess that is a whole other aspect of this that we haven't worked on yet you'd have to still be exploring more and also have the dual network approach running as you had the agent navigated the space. 
+
+If you get done from the environment step function then you are done with this episode so you stop and quit. Looks like you only get 200 chances to land this lunar lander module. 
+
+
+##### The Code That Trains the Agent
+
+training starts with the dqn function, which takes in a number of episodes to train on, a maximum timesteps per episode, a start value and a min value of epsilon for exploration, and a decay rate for epsilon. epsilon is going to start at 1 for each episode of the task and go down to .1 in the default set of hyperparams, adn the decay rate is .995, so in other words it is linearly losing .005 every step, and that means it will take 200 timesteps to go from totally random exploration of actions to being greedy 90% of the time and exploring only 10% of the time. 
+
+we start by initializing the scores array to an empty python list. we then have a scores window that is set up to be a deque object from the collections package which is set to take the last 100 scores from the scores list, but at the start it doesn't do anything. then initialize epsilon to the start value. 
+
+ok, now that everything is initialized, let's loop. 
+
+First there is the outer loop. That one we do as many times as we have num_episodes, starting with 1 and ending with one more than the number of episodes, because range doesn't include its last item and is zero indexed by default, so that way we are going from 1 to 200 instead of 0 to 199.
+
+we then initialize the state for this episode to the env.reset(), makes sense becuase either this is our first episode or we just finished one from a prior iteration of the loop, this outer loop is the episode loop. we also reset the score becuase for each episode we should have zero score at the beginning. 
+
+
+we use the max timesteps parameter to loop over that many steps unless the episode finishes. Then, 
+just like in the running version of this above, we have the agent call its 'act' method, but in this case we pass not only the state representation but also the epsilon value. Then, also unlike the running example where we update the display first etc., we instead immediately use that action we got back from the agent's act method by running the next step on the environment, passing in the action teh agent selected and storing what the environment gives us 
+back. in this case that is next_state, reward, and whether the episode is done or not. We then use what the environment gave us to have the agent step through its own iteration, given we now have the SARS tuple, and we pass done in as well. this has no output, but we do update the state var from whatever it was set to, eitehr the environment reset or the state from the last time step. then we also update the score with whatever reward we received from the prior state. Question here, I remember they normalized the score to be clipped between -1 and 1 for the deep q network before, do they do that again here? 
+
+fter updating the state and the reward, you are obliged at this point to see if your episode is compolete and you are ready to go to the next iteration of the episode loop. if you are still in the current expisode, you don't break and you end up adding the score you received to the deque structure that has the lst 100 scores on it and you also applend it to the overall scores list. Then you also decrease epsilon for this series of timesteps by multiplying it by tyhe decay factor unless it is less than epsilon_end the minimu value of expxilong. 
+
+You then will get the running average of scores over the last hundred episodes. this allows you to check if you have achieved the target score. You are going for an average score of over 200 over 100 episodes. There is a pytorch command that allows you to save your state dictionary into the checkpoint.pth variable when you have achieve d thegoal. Once you have achieved the goal you can break out of the episode loop because you have created an agent that is capable of maintaining an average score of the target score for the number of episodes you were running. 
+
+You then return the scores array that you were able to acheve when you have successfully met the goal. That's the dqn method. 
+
+call the dqn method to train the agent, and then plot the scores below by creating a new figure with pyplot and then adding a subplot to it. then into that plot you can just add a new numpy array of indices that is as long as your scores array and then the scores themselves as the y axis. then you have the scores as the y and the episodes as the x, since you only get one score per episode. 
+
+##### Dqn agent code
+
+import all the numpy and random libraries and the named tuple and dque data structures from the collections library. 
+
+get the QNetwork object from the model
+import pytorch object as well as the F functional neural network
+get the optim izer from pytorch also. 
+
+set some of the global constants buffer size which is 100000
+the batch size of 64
+the gamma, our discount factor to .99
+the tau value which updates the target parametersto .001
+the learning rate which is set to .0005
+and our C value which is update the network every 4 iterations. 
+
+set the device to cuda:0 if using a gpu instance but otherwise use a cpu. 
+
+The Agent Class is defined. The constructor takes in a state_size, action_size and a seed value. 
+state size is the dimension of the state
+action size is the dimensions of the action space
+the seed is a random seed, which if not provided is actually picked at random otherwise for testing and verification of results can be set to a pre-determined seed. 
+
+After the three passed in parameters are defined, we initialize the qnetwork local with the same parameters and then use a .to function and set the device on it. remember this device var is referencing the pytorch object taht could either be a gpu or cpu. 
+
+we also initialize a copy of the network which is to hold the fixed parameter set and act as our targets for squared error loss purposes. 
+we also at this time define an Adam optimizer based on our q network parameter vector and the learning rate which was defined earlier. 
 
 
 
