@@ -208,8 +208,151 @@ the seed is a random seed, which if not provided is actually picked at random ot
 After the three passed in parameters are defined, we initialize the qnetwork local with the same parameters and then use a .to function and set the device on it. remember this device var is referencing the pytorch object taht could either be a gpu or cpu. 
 
 we also initialize a copy of the network which is to hold the fixed parameter set and act as our targets for squared error loss purposes. 
-we also at this time define an Adam optimizer based on our q network parameter vector and the learning rate which was defined earlier. 
+we also at this time define an Adam optimizer based on our q network parameter vector and the learning rate which was defined earlier. It takes in the local parameter vector of the q learning model as well as the learning rate. we also initialize the amount of memory the agent has available for its experience replay buffer and that takes the action_size, the buffer size, the batch size and the seed for the randomness. 
+the time step is then initialized to 0 so that we can use it as our counter to check the UPDATE_EVERY var against. 
 
+###### step method
+
+this is a side-effecting method that sometimes learns and sometimes doesn't depending on what time step it is, and it loads experience.
+
+1. the agent has a step function that takes a state, action, reward and next state argument set and then also a boolean indicating if the episode is done, and it will add the new experience tuple to its memory buffer
+
+2. check to see if the number of the update every counter. 
+
+3. when the modulus for above returns zero, in this case meaning we are at a time step divisible by 4, then we will check to see if we have put enough experience tuples in our memory to satisfy one minibatch of rmsprop for learning. If we do, put them into an experiences var and then pass this into the learn() function of this agent along with the GAMMA discount factor. 
+
+###### act method
+
+this takes the state representation and a value for epsilon for exploration, and it will return the actions for a given state following a policy. 
+the states will be array_like objects (numpy?) and the epsilon will be the value of epsilon for whether an action should be uniform random selection of action or choosing the greedy action. 
+
+1. Ause pytorch to load the current state in from the numpy array it is in to the pytorch tensor type, convert it to float, unsqueeze with param 0. What is unsqueeze? It is new to me. Docs say it is, without changing the data, returning another tensor that has a new dimension added at a given index. So if you had a one dimensionsal tensor with 4 values as in the example on their docs page, then the result would be you now have a 2d tensor with shape (1, 4) since you inserted at 0. it means your result will have 1 row with 4 columns. if you had made the index a 1 then you have 4 rows each with 1 column. So the data is the same but the structure is different. This is hard for me to conceptualize above the 2 provided dimensions, I guess you could just add it anywhere, but it would need to extend the dimensionality appropriately and shuffle the data into the correct position in the tensor. However, important thing is, this is essentually wrapping our data in this case with a []. After that there is the call to to which ensures that the tensor datatype and device of the tensor is correct, setting it to the correct device passing in the device as a positional parameter depending on whether you are using cuda or cpu. So then you have a state var with an object which is a pytorch tensor that is correctly formatted. 
+
+2. the next step is to call the eval() method on the qnetwork_local instance of the deepqnet that we have. this doesn't return a value. then we use a context manager predicated on torch.no_grad(). I guess if it is non null then we are going to call qnetwork_local(state) with our new state tensor and store the result as the action values. So I guess when we ran eval() it was doing something that prepared it to receive the state tensor and output the actions from its softmax, but only if no_grad is true, so guessing if we don't have a gradient then we need to get one by running it through to the last layer and then we need
+
+3. to then train it with the self.qnetwork_local.train() call on the deepqnetwork. so got that? 
+
+eval()
+if no_grad()
+	qnetwork_local(state)
+train()
+
+4. after training then we need to select our next action. do this by choosing a random between 0 and 1 and if it is above the epsilon threshold then we will do the greedy version where we take the action values we got from before and pass them througfh a few filters, not sure exactly what they do although they ahve intuitive names, so looks like first there is a cpu function that gives back data in a format and then whatever object that returns has a data attribute and we are selecting the numpy array version of that data and given we have a numpy array we can take the argmax of it and get the greedy action. 
+
+5. if you end up below the epsilon threshold, then you do a stochastic method wehere you select the action randomly from an array that is a sequence of integers the same size as your number of actions. 
+
+
+###### learn method 
+
+this method will accept a batch of experience tuples and a gamma value for discounting and it will update the value parameters. It is side effecting because it doesn't return the value parameters that it updates. 
+
+the type of the experiences is a tuple made up of {s,a,r,s, done} experience tuples. 
+the gamma discount is a float
+
+I'm responsible for writing the code that minimizes the loss function according to the formula in the whitepaper. 
+
+###### soft_update method
+
+this model is reposnible for the soft parameter update. that is, it will update the parameters of the target network so that they are a tau weighted average of the current target parameters and the parameters that have been updating against the target network, the local parameters. if tau is bigger, there will be more value added from the local params and if tau is smaller there will be more value added from the target params.
+
+this looks to be done with a .copy underscore method off of the target param's data, allows an update in place I supposed and that happens for each of the params in the target network. 
+
+##### ReplayBuffer class
+
+this is the data structure used to house the replay experiences before they are sampled for minibatches. 
+
+we have a constructor that takes the action size the buffer size , the batch size and the seed for randomness. 
+
+we initialize each of these parameters as the value for that object in the constructor. we also initialize a namedtuple called experience that will be used to hold the experience tuples in a format that we can easily dereference from later. 
+
+###### add
+this allows adding a new experience {s,a,r,s,done} tuple to the buffer. we just call the experience method and pass all of those arguments in. this returns the experience tuple in the format we want, that namedtuple. Then we add the named tuple experience to the memory deque object. now I know what a deque is, it is a double ended queue which allows efficient pushes and pops from either the front or the back of the data structure. so instead of first in first out, you get something that is any in any out essentially as long as you can't pop from something that isn't at the end of the structure already. The main advantage of a deque (pronounced 'deck') over a list is that efficient pushing and popping of objects off of the ends, which are both O(n) operations on a list. so we initialized memory to be a deque that can ony grow to be as big as the buffer size that was passed in. 
+
+###### sample 
+
+this will randomly sample the batch of experiences from memory  according to its comment in the example code of the course. 
+we get the batch by performing a random.sample() call with the memory (the deque of experiences we've saved so far) and the number of items to sample is provided by the gbatch size. 
+
+then, we have to get the states, actions, rewards, next_states, and dones for all these experiences and return them in a tuple of tuples. But we actually start with the experiences each being an independent tuple of {s,a,r,s,done}. So, we want ot combine these each into their own pytorch device specific variables. in order to do this, we have to, for each of the variables: 
+1. use a list comprehension to get the indivivual field from the named tuple for each experience tuple in our batch.
+2. use numpy to vstack that array, I guess turn it from a list to a vertical numpy array, much as you would have for a tensor. 
+3. convert that numpy array into a tensor. 
+4. cast it to a data type that it should have in pytorch
+5. make sure the tensor has the correct device (e.g. cuda, cpu)
+
+then we return the tuples. 
+ 
+
+###### __len__
+
+this duner method will return the size of the internal memory deque. since we need to be able to get the len and this class is mostly a wrapper around this internal state. 
+
+#### model.py QNetwork 
+
+this has largely not been implemented, just the skeleton is there for me to fill in. All they seem to think I need to do is  finishe initializing the QNetwork and then implement the forward propagation step. Well I'll go over what is here at least. 
+
+##### Init method
+
+this constructor accepts three params, state_size which is the dimension of the state, actoin_size which is the dimension of the action space, and seed which is a seed so that if you don't want a random start you can test with a specific set of intial values. 
+
+##### forward 
+
+all it takes is state and my mission if I choose to accept it is to have a network that will map state to action values, so in other words learns the approximate optimal policy for the environment. 
+
+
+So, I need to implement the loss computation as well as the forward propagation step, they have taken care of such things as experience replay, epsilon decay, even fixed state updates, so all of the special considerations of the deepqlearning paper except for the propagation and the update. 
+
+Since I don't know pytorch very well I'm a little nervous around pytorch so might need to do whatever project starts with that. So let's go to the extracurriculars section and see if we can't learn some things
+
+### Neural Networks review
+
+neural networks have their name because perceptrons kind of represent neurons in the brain. perceptrons calculate some equations on the inputs and decide to return 1 or 0. Neurons are similar because dendrites get some nervous impulses and does something with them and then decides whether or not to send out an impulse itself. in that way the neurons netowrk their impulse sending capability with respect to each other much in the same way that the perceptrons do. cool that makes sense. 
+
+lets create a nonlinear model by combining two linear ones. you could easily do this by superimposing two linear models and then merging what you have done. so in math: 
+linear models are a probability space, for every point we have the probability of some variable for that point. the linear model will decide what regions to subdivide points into. what if you add them together? just add the probabilities? well no, because then it isn't a probability anymore whenever you are going over 1. So you need a function like the sigmoid to reshape the result of the combination into something that fits into a probability function.
+
+what if you don't want ot do a straight combination of the two linear models? you can have weights that represent each of the models differently, and you can have a bias. What you have done is created a linear combination of these different models instead. so you kind of made a meta model that is turning each of the two lines into another line based on that, but the resulting linear combination of the earlier linear combinations isn't going to represent a linear function it is going to represent a weighted sum of linear combinations which will actually be a non linear function. That is probably the clearest explanation I've ever seen for how neural networks are non linear. 
+
+so they show how there is a way to go from a single layer perceptron to a multi layer perceptron, which shows how you arrive at the foundation for neural networks
+
+linear model = value * constant + value * constant + bias
+
+so you have linear model a and linear model b. if you draw them so you have the x values as the nodes in the first layer, then you can see how those nodes are really just getting stacked so your input is really being treated as a series of linear models stacked on top of each other. then the output s of each are going to be input into yet another set of stacked linear models where your inputs are really just the outputs of the results of all the linear models form the first layer. 
+
+the demonstration was that you have a linear combination that is one set of coefficients for the X vector x1, x2 and another linear combination that applies different coefficients to those same x values, then there is another linear combination with yet a third set of coefficients that it will apply to the outputs of the first two models to a linear combination to arrive at the third linear combination result. you can then have an extra node in the first layer which is the bias and the weights of that are set as the actual bias terms. you then compute the linear combination of the x values with their coefficient weights that are contributed for each x and the bias, and then take the sigmoid to set the result to a value between zero and 1 and then that becomes an activated neuron from the next layer, then you do tha tfor the next one down and that becomes another neuron but based on the weights of anothe rlinear combination of the x values and bias with a sigmoid to fit it to the appropriate range. then you do the sigmoid of your final result and that is your output. 
+
+#### nomenclature - 
+inputs x1, x2, etc. 
+
+hidden layers - the set of linear models created with the first input layer. 
+
+output layer - linear models are combined to create one non linear model. 
+
+things you can do to change the architecture: 
+1. adding nodes to the hidden layer, that means you are essentially adding linear models to your layer, each new node is a new linear model in terms of the input. 
+2. adding nodes to the input layer, that is tantamount to increasing the dimensionality of your problem as a whole, that means your linear models are going to be in terms of a higher dimensional space and the boundary you are drawing in the output is going to be a hyperplane in that same higher dimensional space. 
+3. adding nodes to the output, that just means you have more output meaning you are doing a multi class classification problem for instance. 
+4. adding more layers - this is where the 'deep' in deep neural networks comes from. when you have another hidden layer, that means you are taking the output of the first set of linear models, which will be non-linear, and then inputting them into additional linear combinations of which the outputs will be even more non-linear functions. architectures can be very complex and will split the higher dimensional space with a highly nonlinear boundary, and that is where the magic happens, it is able to learn a very definite boundary for the data in higher dimensional space. Sounds like it would have problems with overfitting though, I wonder if they are going to say anything about that. 
+
+
+multi class classification - neural networks are really good at binary classification problems out of the box. if you want to do a multi class classification problem you might think you need to make a neural network for each of the possible classes you want and then use softmax across those multiple networks to tell you what the result should be, whichever network's output showed the highest probability of the image belonging to that class. However, that is overkill because you have enough information from the earlier layers of the network to deduce what is in the image and should be able to use just that to figure out which thing is represented there out of a set of possible things. It turns out that if you add nodes to the output layer to represent one of each type of thing in your set of things that you think it could be, the network will assign a value for each of those nodes and you can do softmax to figure out which it is. 
+
+#### Feed Forward
+
+training, what data should the network have on the edges in order to predict well. 
+in the perceptron with only one layer and only 2 dimensions, and it is only predicting a binary classification whether or not a point is red or blue. 
+you have an equation w1x1 + w2x2 + b 
+perceptron plots point x1,x2 and gives the probability that the point is red
+let's say that the weight w1 is bigger so its edge is thicker. 
+in the example the model was bad and the point was blue but the network was heavily weighted and the blue point was on the red side of the boundary. 
+
+the process of plotting and outputting a probability is known as feed forward. 
+in a more complex network you might have 2 hidden layer nodes
+the model will also have the nonlinear output which has a different probability. 
+
+so in feedforward, you have input vector x1 x2 and bias, then you multiply that by the weight matrix w2 for the second layer. you do a linear transformation with the weight vector, then you sigmoid them to put them between 0 and 1, adn then that gets multipled by another set of weights in a new matrix and then the sigmoid of that is your y hat. 
+
+even if there was another layer, way of looking at it is start with vector x with weights applied and then sigmoid and then dot product with weights and then sigmoid and then weights applied with dot product and then sigmoid and then you have your output. 
 
 
 
