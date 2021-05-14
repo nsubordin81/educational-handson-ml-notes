@@ -160,6 +160,43 @@ had issues with my softmax and then saw that they were using one from F and it d
 
 had to look up guides in the pytorch site and read their helpful hints for defining the layers and doing the forward pass implementation. 
 
+I didn't keep track of the dimensions of the output of the convolutional layers, the segment of the course that covered that was not included in the portions of video provided. Their solution repo actually did go into it enough to talk about how to derive the dimensionality of the output with the (w-f)/s + 1 formula. So my performance was bad before applying that knowledge over 5 epochs, not that bad, but to think that I wasn't properly flattening the input to the linear layer probably made a difference. 
+
+so my network wasn't even getting accuracy above zero on a single example when untrained. that's pretty bad. seems like there might be something wrong here because apparently just guessing would give 10% accuracy and this model does worse than that. 
+
+The concept of a Variable Wrapper is just kind of thrown in there for kicks, but it sounds really important. Pytorch uses this to automatically track how the input is changing as it passes through the network and this is how it is able to automatically able to calculate gradients for backprop during a forward pass. Note to self, go into the pytorch underbelly and see how that works sometime. 
+
+Other reasons besides the dimension mixup that my original netowrk was bad:
+- I forgot the linear fully connected layer at the end, so I was basically feeding the convolutional layer output directly into a softmax, not really transforming the functional output of the representations I'd learned from the image into anything of note. 
+
+it looks like the code when it was written had the output of max as being a scalar when now it is returning a tensor, so I get a tensor response, but now the accuracy of my model is much better. 
+
+### performance before training
+
+this is I guess a baseline to make sure that the model performs about as well as a random guess to start with. mine was slightly better than that. 
+the method here was to go through the images in each mini batch and get the predictions and check them against the labels, then figure out the percentage of the time that we were able to correctly predict the class of the image. 
+
+### actual training
+
+the pytorch framework makes this look so easy. 
+1. Looks like we go through the minibatches with an index and data for each of the batches in the train_loader (wehre we loaded the FashionMnist dataset at the beginning) and we get the input images and labels from the data, then assign them to the result of wrappnig them in a variable object. 
+2. then we use the zero_grad() option of our optimizer to fill the weights with zeros. I guess that is best practice for convlutional networks, maybe deep neural nets in general? I wonder when it is better to use a stochastic low weight value approach vs. starting with all zeros. I remember something vaguely from coursera about this.
+3. do the forward pass. Since Pytorch cleverly must implement the dunder call method under the covers in the parent class, invoking the instance like it was a function is suger for calling this underlying method that probably calls all the internals of the class. It reminds me a lot of like a template method pattern, very elegant indeed. 
+4. we get the loss using the criterion that we established above, ours was cross entropy loss, we have to pass the forward pass outputs I guess that is the class scores, as well as our ground truth labels for each of the records in the mini batch, and the criterion takes care of the rest for us
+5. then we need to do a backprop step to calculate the gradients for each of the weights this is just taking the loss object we got back from the criterion and calling backward() on it, wonder what type of object that is that makes it possible to do that. 
+6. then, this is really strange, we do the optimizer.step which should be updating the weights according to the calculated gradients. Pytorch must be connectin the optimizer and the criterion behind the scenes because there is no argument to be passed into the optimizer for this step, it simply calls step() and then it is a side effect that the params are updated. Ah, looked this up separately, this is part of the way that pytorch works, they opted to store the gradients on the tensor objects themselves, so when you call backwards() on the loss, that updates these gradients on the tensors and then the optimizer has a reference to those from when you instantiated it, so it uses each tensor's own gradient to update its own weights. 
+7. loss statistics are prints next, so every 1000 minibatches that you go over it prints out which epoch you are on, what batch you are on and what the loss is now. 
+
+### test accuracy
+
+unfortunately there is a type error somewhere in this 3 year old notebook that prevents me from seeing what my accuracy is. Rather than spending too much time debugging it now, I'll just hope that it was high enough and move on so that I can get back to the DeepQLearning assignment, where I will no doubt have to do a lot of similar troubleshooting but in the context of actual reinforcement learning work with conv nets. 
+
+
+
+
+
+
+
 
 
 
