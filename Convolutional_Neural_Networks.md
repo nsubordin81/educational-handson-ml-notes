@@ -191,12 +191,11 @@ the pytorch framework makes this look so easy.
 
 unfortunately there is a type error somewhere in this 3 year old notebook that prevents me from seeing what my accuracy is. Rather than spending too much time debugging it now, I'll just hope that it was high enough and move on so that I can get back to the DeepQLearning assignment, where I will no doubt have to do a lot of similar troubleshooting but in the context of actual reinforcement learning work with conv nets. 
 
+Looking up the error that I got back, I found a similar one where someone was getting an error and it had to do with the type conversion of the conv2d tensor, but in my case the type error is happening during calling of a numpy function on a value. If I can figure out what the types are in this situation, maybe it has to do with pytorch conversions that are special for numpy/tensor relationships. 
 
+A ok, after reading some good guidance form the pytorch documentation on github https://github.com/pytorch/pytorch/issues/22402 which is an open issue for more compatibility, it looks like in my situation, in addition to wrapping some of the values to floats for the class_total[i] values because they are uint_8 values, I should also be explicitly setting the numpy arrays with np.asarray before passing them into numpy objects, because pytorch has only partially implemented the numpy api for their tensor class, and when there is a numpy array that doesn't have a method implemented in that protocol that allows it to accept tensors, then it throws an exception saying that the np array is mising some required positional arguments that are actually optional in the numpy api, so the protocol must need to override this and do something so they aren't required. Tha tis actually an open issue on github so mayb e I can contribute there. 
 
-
-
-
-
+Turns out there was another issue because onece I got that part working, I was seeing an accuracy score on the validation set that was way lower than what I expected. It was odd because the loss which was calculated by my criterion object which is a pytorch object and therefore stable mature code was very low for the outputs of the model compared to the labels. That was enough of a hunch to carry me through, so I eventually found out that there was a bug in their 3 year old course code where it was overriding correctly determined values for the correctness of each minibatch with bad values tha tmed it seem very inaccurate. Seems like pytorch has changed in the last 3 years and that threw off their example code a lot. Anyways, the model jumped from 7% accuracy to 87% so I'm satisfied for now, knowing I only trained for 5 epochs and my convolutional layers could have been a bit more varied if that would help get the loss even lower. 
 
 
 
