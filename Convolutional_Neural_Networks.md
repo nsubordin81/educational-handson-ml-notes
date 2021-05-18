@@ -197,5 +197,112 @@ A ok, after reading some good guidance form the pytorch documentation on github 
 
 Turns out there was another issue because onece I got that part working, I was seeing an accuracy score on the validation set that was way lower than what I expected. It was odd because the loss which was calculated by my criterion object which is a pytorch object and therefore stable mature code was very low for the outputs of the model compared to the labels. That was enough of a hunch to carry me through, so I eventually found out that there was a bug in their 3 year old course code where it was overriding correctly determined values for the correctness of each minibatch with bad values tha tmed it seem very inaccurate. Seems like pytorch has changed in the last 3 years and that threw off their example code a lot. Anyways, the model jumped from 7% accuracy to 87% so I'm satisfied for now, knowing I only trained for 5 epochs and my convolutional layers could have been a bit more varied if that would help get the loss even lower. 
 
+I should take note of the overall conclusion of the solution as to the problem the model has now. It is very similar to the problem I had, which was it had trouble differentiating between shirts and overcoats and pullovers. In their case though, it seems it was consistently misclassifying shirts and pullovers as coats, so it was more clearly overfitting to the class of coats at the cost of better gneralization. My dropuout layer may have been what helped this somewhat for my model, but it has a similar problem so I could maybe add a few more. 
+
+### Dropout and Momentum
+
+dropout traditionally turns off random neurons in the layers of the network with some probability and that will stope one node from dominating and being wrong on something that the others can't balance out. analogy for dropout given by the course was chaos monkey that goes in and randomly breaks things to make the whole system more resilient. Interesting that is a good analogy, proves that the whole system is working well because it can recover from failures in part of it. 
+
+momentum we already had some exposure to in the neural networks course, this part is rehashing that, the idea that you are using a dampened accumulation of past gradients to contribute a little extra to your current gradient's vector as it goes down, so it might roller coaster out of a local minima into a deeper global one, but not so much weight given to the prior gradients that you don't eventually settle down and get stuck in something. 
+
+Interesting, so they added the dropout between fully connnected layers after the convolutional and pooling layers whereas I added my droupout which was specifically made to work with conv2d layers because it removes whole feature frames. They used stochastic gradient descent with momentum whereas I went straight to ADAM for my optimizer. So interestingly we both added momentum and dropout regularization in different ways and our overall accuracy was around the same thing at about 87%. Might be worth revisiting to figure out why mine wasn't even better. I guess they trained over more epochs, I would expect mine would perform better unless doing the dropout early hurt performance somehow because Adam is supposed to be a better overall technique than stochastic gradient descent even if you add momentum to stochastic gradient descent I would have thought. Maybe not though. 
+
+
+## Feature Visualization
+
+This can be really important for convolutional neural nets because it is hard to konw exactly why a model isnt' performing well on input data if it might be learning features that you didn't expect and associating those features with a class. 
+
+### Feature Maps
+
+important point, near the beginning of the CNN, the first convolutional layer is a number of filtered images that get produced when the input image is convolved with a set of image filters which are just grids of weights. convolutional layer with 4 filters, four output images will result. These are the feature maps or activation maps because each of the filters should be focusing on some properties and also ignoring some. This will activate portions of the map and not activate other portions for a given image. a high pass filter, when applied to an image creates an activation map that activates the most when it sees high frequency features. Feature Maps
+
+important point, near the beginning of the CNN, the first convolutional layer is a number of filtered images that get produced when the input image is convolved with a set of image filters which are just grids of weights. convolutional layer with 4 filters, four output images will result. These are the feature maps or activation maps because each of the filters should be focusing on some properties and also ignoring some. This will activate portions of the map and not activate other portions for a given image. The first convolutional layer often learns how to create high pass filters on its own during training. The first convolutional layer often learns how to create high pass filters on its own during training. That happens as the weights that make up the convolutional kernels get updated in response to the gradient descent step, that causes the high pass filters to emerge from the random original weights. 
+
+### first convolutional layer
+
+The first convolutional layer applies a set of image filters to an imput image and outputs a set of feature maps. You can see what kind of features the network has learned to extract by visualizing the learned weights for each filter. filtes are grids of weight values, so you can treat them like a small image. 3x34 filter for a grid image can by visualized as a 3x3 pixel image. The brighter pixels are high value postiive weights, dark value are small or negative weights. You could look at the lines of contrast and you can interpret how the filter tries to isolate features. Color images are also important to note. There is just another dimension in the filter for lcolor and those could be displayed as small color images. The filters tend to be looking for geometric patterns. These are represented by alternating lines of light and dark at different angles. there are also corner detectors and filters that are looking for areas in the image of opposing colors. 
+
+visualizing filter weights seems simple on the surface with one layer. once you get to later layers in the network, they don't correspond to the input image, there is instead a layer leading to them that came from a pooled, activated output. visualizing the filters won't let you reference back to the original input images. there needs to be a technique to see what is happening in the deeper hidden layers. 
+
+there is a link to a talk by Matt Zeiler about his graduate work at NYU and subsequent startup that is basd on deconvolutional neural networks that just have the goal of reversing the process of the convolutional neural net so that it can be visualized from prediction all the way back to the input image. will need to spend some more time on this it seems like a valuable way to get to something tha twill reliably help deconstruct networks and visualize what is happening and what kind of 'reasoning' they are doing when their trained model performs a forward pass of inference. 
+
+so the first layer of the network is good at extracting lines and blobs and such, but then your second layer is picking out more advanced concepts after the activation and max pooling which are more like what we think of as shapes. 
+
+the third layer takes those shapes from the second layer and puts them together into complex combinations of the features from the first layer, and they can be whole patterns and  even complex abstractions like a face, not necessarily the features in the face but the fact that it is a face whereas another part of the image doesn't have a face. 
+
+if you get all the way to the 5th layer, you are starting to extract the most distinctive features that objects in the image have. if the network is trained well, then you will be seing things like pointey ears combined with beady eyes for  certain types of dogs, the eyes and complex set of lines around the eyes for birds and reptiles, the faces of humans, the seed pod structures and petal texture for flowars, the wheel and spoke patterns for a bicycle or unicycle wheel, etc. 
+
+### Later convolutional layers
+
+Visualization of the filters don't give as useful info because the weights have gone through things so there isnt' that same kind of easy to read info. to see what the later layers are seeing is to lok at the dfeature maps of the layers as the network looks at certain images. If you look at how the feature map activates while it is looking at a specific image like a face, you can see how the feature map activates, and that will have bright spots of activation in localized areas. You want to verify that they aren't just producing noise, you want to see that the activated maps are showing distinctive plots of brighter areas for different images they are exposed to. 
+
+### workbook for feature visualization
+
+ok, so here's the code that matters from that notebook, hopefully explained: 
+
+1. get the iterator over the loaded data, then unpack its first batch of values into input images and corresponding labels. 
+2. convert the images to a numpy array format. this will actually be a multi dim numpy array of shape 20x1x28x28, which is 20 images, each stored in a 1d array (I guess for how many filters will be inputed, this is grayscale so just one), each containing 28 arrays (i hats) with 28 columns (j hats) and the values in that 28 x 28 2d array are float values indicating how much value that pixel will have, from 0 being all black to 1 being all white.
+3. get the 3rd image by index,  use numpy squeeze after getting the image from the array which will have the effect of removing that outermost dimension so that it is just the 28x28 pixel image represented without its extra array around it. 
+4. import the cv2 library and then use plotly to set up a subplot that is grayscale
+5. get the weights from the trained network and convert them to a numpy array
+6. ok, so we know that the minibatch had 20 images, so we are going to plot a grid of those images alongside their filter visualizations. we create a grid that has 10 columns and 2 rows, then, we iterate over that grid and add a subplot that is also 2x10 at the index that is 1 indexed instead of zero, and if it is an even value for i then we plot the actual visualization of the weights as a pixel image, but if it is an odd numbered iteration then we will plot the activated feature map which takes in the original image from this point in the mini batch as well as the weights and shows the activated feature map for that imgae given what the filter had learned to extract. 
+
+the same exercise is then repeated but for the second convolutional layer, and it clearly shows why there is more of a problem just using the learned weights from the convolutional filters on the second layer because they are representing the pooling that took place as well as the activation from the first layer in the input they learned from so the visual of the image isn't really telling you much with just those 3x3 pixelated filters, but once you see them applied to that map, you can really tell that there are portions of the activated feature maps that are much more bright than the other portions so that must be what they are learning. 
+
+### last layer and the t-SNE
+
+another way to visualize what is happening in the CNN is to look at the last linear layer in the model. the output of the CNN is the fully connected class score layer and the layer one before is the hidden layer that is a feature vector tha represents the content of the input image somehow. it has the contents after going through all layers in the CNN and it contains enough distinguishing information to classify appropriately. Remember also that there is a step that has to flatten the feature maps that came from the convolutional section into the feature vector that is acceptable input into the fully connected layer that ultimately produces the class scores. 
+
+So, you can attempt to visualize what is happening in the final layer of the CNN, tha tfully connected one, by running several images through the same network and then record that last feature vector for each image. there is then a feature space that allows you to compare how similar the vectors are to one another.
+
+you can use a clustering approach like nearest neighbors to figure out how close these higher dimensional vectors that serve as input into the fully connected layer are in feature space. nearest neighbors I am familiar with trying to figure out the bayesian decision boundary by using knn, so it is kind of intuitive that if a CNN has extracted similar features from two images, then clustering these features would show what it is putting close together in higher dimensional space and therefore what things it thinks of as similar. 
+
+once you have some nearest neighbor information that gives you the distance between the vectors for different images, to be able to visualize them you need to reduce them down to a lower dimensional space that humans can actually comprehend the visual nature of. 2 dimensions is best. that way you can plot it in 2 dimensions and that is a very clear way for a human to recognize the groupings. 
+
+Principle Component Analysis is a good candidate for dimensionality reduction. it will create 2 new variables that are a funciton of the features and the verables will maximize the differences btween each other and the resulting x and y will be separated by as much of a margin as possible which is even better for our goal of seeing how the network was trying to classify things. You can also use the t-SNE method which is short for t distributed stochastic neighbor embeddings. it tries to reduce the dimensionality but using a non linear approach. 
+
+### Other feature visualization techniques
+
+#### occlusion experiments
+
+this is when you block out or mask part of an image. you can block out parts of an image and see how a network responds. That will give you a sense of whether or not that part of an image is being used for the feature extraction that leads to the classification. if the class score changes when you occlude an area of the image, then the CNN was likely relying heavily on that part of the image for its feature extraction. 
+
+you wouldn't just do this for one image and learn something, you'd probably occlude several different parts of the image as several input images, then: 
+1. maas part of the image before you feed it into the forward pass of the CNN
+2. plot a heatmap of the class scores of each of the masked images
+3. keep doing this while occluding other parts.
+
+you should see whether the brighter area of the class scores heat map changes when you move the occlusion around. 
+
+
+#### saliency map
+
+this is more about what in the image is important for classification, maybe the inverse of occlusion. you don't need all the pixels for classification in the image, only the once that distinguish the object you are trying to classify from all other object in the class space that you are classifying over. a Saliency map tries to compute the gradient of the class score with to the image pixels. Just like gradient of the error with respect to the weights shows how the change in weights affects the overall loss, the gradient of the class score with respect to the pixels should show how much a change in pixels makes the class score change. 
+
+so the gradient can be transformed into a saliency map, which is like a grayscale heatmap where the pixels that contribute the most to the class score are the ones that appear brightest on the saliency map. 
+
+#### Guided Backpropagation
+
+this is kind of like taking the concept of saliency maps to the full analog of applying them the same way the error gradient is applied during training, but instead it is to apply the gradient of the class score with respect tot he pixels at every layer of the CNN so that you can have saliency maps of each of the activated feature maps that you get from your different layers and know exactly which pixels in the feature maps will activate neurons later on in the network, it is like a stepwise debugging tool for CNNS, seems very powerful. Also seems like it could help determine if adversarial examples can be stopped by this network or where they are vulnerable. 
+
+#### conclusion on visualization
+
+There is a common criticism that CNN layers are not interpretable, but it looks like there are ways to figure it out. 
+
+for classification CNN, you can visualize as you look through deeper layers of the network that CNN builds a smaller, more distilled representation of the content of the image, it retains high level features that still have enough content in the images to properly classify it.  It doesn't stop with classification, it is the basis for tenchiques such as style transfer and deep dream which compose images from layer activations and extracted features. importantly also though it is how you can communicate to other people what you ahve taught your network so that their product becomes less mysterious. 
+
+#### Deep Dream
+
+1. this is a technique that involves first selecting a layer from a CNN that you want to amplify, could be early or late in the process. 
+2. activation maps need to be computed for that layer, so get the feature map and apply the activation function to them
+3. set the gradient of the layer to the activations, I believe this is referring to the gradient of the error in terms of the weight parameters? not 100% sure. in essence though, what you are doing is saying that you want the change in the features that this activation map has extracted to be accentuated in the final image
+4. then you update the image with this gradient that you have calculated. So maybe it isn't the error, seems like it is just the gradient of the activation weights with respect tot he pixels? I think I need to read more about how this is done or do the exercise. 
+
+#### style transfer
+
+first, you need to isolate the contents of an image that you want to apply a different style to. The insight here is that the isolated contents are really just the later layers of the neural network, becuase part of what the network is doing later on is just getting the essence of an image the parts that identify the object best, while leaving out the 'details' which often correspond to the color palette, texture, things like 'bruststroke', orientation, things that can be done a little differently and someone would still look  at the object and say "that's a cat"
+
+then, you isolate the style of another image that you would like to apply, and that is a different process. you can create a feature spae that is supposed to capture the texture information about the image. This is created more or less by looking at the reslationships between feature maps in different layers of the network. you can then get the idea about texture and color but not how objects in the image are arrange, what is actually in the picture. :w
+
 
 
