@@ -162,6 +162,8 @@ had to look up guides in the pytorch site and read their helpful hints for defin
 
 I didn't keep track of the dimensions of the output of the convolutional layers, the segment of the course that covered that was not included in the portions of video provided. Their solution repo actually did go into it enough to talk about how to derive the dimensionality of the output with the (w-f)/s + 1 formula. So my performance was bad before applying that knowledge over 5 epochs, not that bad, but to think that I wasn't properly flattening the input to the linear layer probably made a difference. 
 
+Also remember pooling divides by 2
+
 so my network wasn't even getting accuracy above zero on a single example when untrained. that's pretty bad. seems like there might be something wrong here because apparently just guessing would give 10% accuracy and this model does worse than that. 
 
 The concept of a Variable Wrapper is just kind of thrown in there for kicks, but it sounds really important. Pytorch uses this to automatically track how the input is changing as it passes through the network and this is how it is able to automatically able to calculate gradients for backprop during a forward pass. Note to self, go into the pytorch underbelly and see how that works sometime. 
