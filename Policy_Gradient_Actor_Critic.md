@@ -137,7 +137,22 @@ play by play of the pong script:
 - then there is a preprocessing function which is preprocessing the image inputs. you start with 3 frames of atari input which is 210x160, then you squash it into 1 80x80 frame. first you crop the image, truncating out the width so you only have pixels starting with 35 ending with 195, must make sense I don't know what the pong screen looks like probably it has extra black space to the left and right of the paddles. Then you scale it down by 2 with a really fancy indexing thing looks like, though once you know slicing and spanning it isn't bad, I[::2, ::2,0] so take every other pixel from the width and the height, but don't do anythign in the 3rd dimension. Then erase the background for both background types looks like you are zeroing out a non zero color value for the pixels so again a way to fix something that humans don't care about atari wise but could throw off our algorithm. Then, use ravel() to concatenate the values in these arrays before returning them. I don't quite grasp the difference aspect it just looks like downsampling and combining frames, is that really the same as "subtracting" them?
 - There is another function called discount_rewards, and its job is to accept an array of rewards that have been achieved and then compute the discounted reward. So this is corresponding to discounting the rewards by a discount factor gamma according to what order the actions were experienced in. going to hold off on interpreting this one until I see it in action, it looks like it starts with a zero valued array for the discounted reward, then it iterates backward through the timesteps, counting down from the latest timestep to zero, and it updates a running _add term. running add starts as zero but then gets accumulated incrementally by the product of itself and the discount factor (.99) summed with the reward at that timestep. you also update the discounted return value at that timestep to be equal to the accumulated sum. There is a line that says if you actually experience a -1 or 1 reward you should reset the accumulated sum to 0, so every timestep will get a discounted reward but if you get to the end of an episode of pong and get a new reward you won't keep adding reward from the earlier episode. At least that is what I think it is saying. 
 - you have the foroward pass function for the policy which is just the dot product of the model's first parameter tensor and the input vector that was preprocessed, then you do relu nonlinearity, very cool tric for the stepwise function here very concise, h[h<0] = 0 captures give me h unless  it was less than zero in which case give me zero., then you get the log probability of the up action by taking the dot product of the second parameter tensor and the hidden layer that you got as the result of the activation. You then convert from log probability to the probability by doing the sigmoid, and return the probability of up as well as the hidden state. 
-- 
+- there is a policy backward function which does backprop in only a few lines of code using numpy also. this goes to show me I need a refresher on the mechanics of computing the this value, but I trust it is giving back the derivatives with respect to the weights. 
+
+- now for the 'main' body of the code, you setup the pong environment with the gym api
+- get the first observation just as you would with the value function method
+- initialize a variable to hold the prior image to create difference frame
+- initialize a bunch of empty arrays with different names
+- create a running reward variable
+- initialize the reward sum and episode counter to zero
+
+- the rest of the code is in a while loop, I'll indicate that with indentation here. it is a nonterminating loop so you have to break
+    - if you have decided to render pong while training, then you have the render method here
+    - do the preprocessing on the current frame, a ha! so it looks like it isn't different yet after all
+    - if this is your first frame, then initialize to zeros, if there is already one in the buffer then set the value of the pixels to the difference
+    - update the frame buffer to have the image from this iteration now that you used it to calc the difference. 
+    - do the forward pass, that gives back the hidden layer and the action probability sample
+    - So because this is stochastic, you don't just take the action that the network gave max probability to, you actually use it with a uniform random sample for a weighted chance you will pick what the netowrk said to do. 
 
 
 
